@@ -62,6 +62,9 @@ class SGlangEngine:
             "SAMPLING_BACKEND": "--sampling-backend",
             "TOOL_CALL_PARSER": "--tool-call-parser",
             "REASONING_PARSER": "--reasoning-parser",
+            "SPECULATIVE_ALGORITHM": "--speculative-algorithm",
+            "SPECULATIVE_DRAFT_MODEL_PATH": "--speculative-draft-model-path",
+            "SPECULATIVE_DRAFT_ATTENTION_BACKEND": "--speculative-draft-attention-backend",
         }
 
         # Boolean flags
