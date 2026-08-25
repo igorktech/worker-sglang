@@ -51,7 +51,7 @@ See [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) for the full local work
 
 ## Hardware requirements
 
-This worker is built on `lmsysorg/sglang:v0.5.17-cu129`.
+This worker is built on `lmsysorg/sglang:nightly-dev-cu12-20260825-1ec20fd2` plus the LFM2 DSpark overlay from [sgl-project/sglang#31041](https://github.com/sgl-project/sglang/pull/31041) (`6fa5223`). Tagged `v0.5.18` cannot run LFM2 DSpark.
 
 - **The host driver must provide CUDA 12.9 or newer.** The base image declares
   `cuda>=12.9`. On an older host the container never starts: it fails in the NVIDIA
@@ -113,6 +113,9 @@ All behaviour is controlled through environment variables:
 | `TRITON_ATTENTION_REDUCE_IN_FP32` | Cast Triton attention reduce op to FP32           | false            | boolean (true or false)                                                                                                                                                                                                                                                                                                                                                                         |
 | `TOOL_CALL_PARSER`                | Defines the parser used to interpret responses    |                  | "apertus2509", "cohere_command4", "deepseekv3", "deepseekv31", "deepseekv32", "deepseekv4", "gemma4", "gigachat3", "glm", "glm45", "glm47", "gpt-oss", "hermes", "hunyuan", "inkling", "interns1", "kimi_k2", "kimi_k3", "lfm2", "llama3", "mimo", "minicpm5", "minimax-m2", "minimax-m3", "mistral", "poolside_v1", "pythonic", "qwen", "qwen25", "qwen3_coder", "step3", "step3p5", "trinity" |
 | `REASONING_PARSER`                | Defines the parser used for reasoning traces      |                  | "apertus2509", "cohere_command4", "deepseek-r1", "deepseek-v3", "deepseek-v4", "gemma4", "glm45", "gpt-oss", "hunyuan", "inkling", "interns1", "kimi", "kimi_k2", "kimi_k3", "mimo", "minimax", "minimax-append-think", "minimax-m3", "mistral", "nemotron_3", "poolside_v1", "qwen3", "qwen3-thinking", "step3", "step3p5"                                                                     |
+| `SPECULATIVE_ALGORITHM`           | Speculative decoding algorithm                    |                  | `DSPARK` for LFM2.5 DSpark                                                                                                                                                                                                                                                                                                                                                                      |
+| `SPECULATIVE_DRAFT_MODEL_PATH`    | Hugging Face draft checkpoint                     |                  | e.g. `LiquidAI/LFM2.5-8B-A1B-DSpark`                                                                                                                                                                                                                                                                                                                                                            |
+| `SPECULATIVE_DRAFT_ATTENTION_BACKEND` | Attention backend for the draft model         |                  | `flashinfer`                                                                                                                                                                                                                                                                                                                                                                                    |
 
 ## Tool/Function Calling and Reasoning
 
@@ -124,6 +127,24 @@ All behaviour is controlled through environment variables:
 - **Reasoning**: Set the `REASONING_PARSER` environment variable to match your model family if you want to enable reasoning traces parsing. See the `REASONING_PARSER` row above for the full list of supported values. If unset, this worker does not pass `--reasoning-parser` to SGLang.
   - Example (docker-compose): add `REASONING_PARSER=qwen3` under `environment:`.
   - Example (RunPod Hub): set the `REASONING_PARSER` env var in the UI.
+
+## LFM2.5 DSpark
+
+This image overlays [sgl-project/sglang#31041](https://github.com/sgl-project/sglang/pull/31041) so LFM2 and LFM2-MoE can run DSpark. For the 8B MoE on an L40, set:
+
+```
+MODEL_NAME=LiquidAI/LFM2.5-8B-A1B
+SERVED_MODEL_NAME=LiquidAI/LFM2.5-8B-A1B
+SPECULATIVE_ALGORITHM=DSPARK
+SPECULATIVE_DRAFT_MODEL_PATH=LiquidAI/LFM2.5-8B-A1B-DSpark
+SPECULATIVE_DRAFT_ATTENTION_BACKEND=flashinfer
+DISABLE_RADIX_CACHE=true
+MEM_FRACTION_STATIC=0.75
+TOOL_CALL_PARSER=lfm2
+TRUST_REMOTE_CODE=true
+```
+
+Keep `GEN_MODEL` in docsearch equal to `SERVED_MODEL_NAME`. Pin the endpoint to ADA 48 (or larger), CUDA 12.9+, min workers 1, and container disk ≥ 50 GB so both the target and the draft fit.
 
 ## API Usage
 

@@ -1,8 +1,37 @@
-FROM lmsysorg/sglang:v0.5.17-cu129
+# CUDA 12 nightly from main — v0.5.18 has generic DSpark, not LFM2.
+# Pin the digest-equivalent tag so rebuilds do not silently jump.
+FROM lmsysorg/sglang:nightly-dev-cu12-20260825-1ec20fd2
 
 # Keep handler and sglang output unbuffered so container logs appear live;
 # without this a slow or failing startup produces no logs at all.
 ENV PYTHONUNBUFFERED=1
+
+# LFM2 / LFM2-MoE DSpark (https://github.com/sgl-project/sglang/pull/31041).
+# Drop this layer once a tagged image includes that PR.
+ARG SGLANG_DSPARK_SHA=6fa5223c0692bcc54f3521c740aa9c97c3c9ad14
+RUN python3 - <<PY
+import pathlib
+import urllib.request
+
+import sglang
+
+sha = "${SGLANG_DSPARK_SHA}"
+root = pathlib.Path(sglang.__file__).resolve().parent
+files = (
+    "kernels/ops/speculative/dspark/fused_kv_write.py",
+    "srt/models/dspark.py",
+    "srt/models/lfm2.py",
+    "srt/models/lfm2_dspark.py",
+    "srt/models/lfm2_moe.py",
+)
+base = f"https://raw.githubusercontent.com/tugot17/sglang/{sha}/python/sglang/"
+for rel in files:
+    dest = root / rel
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with urllib.request.urlopen(base + rel) as resp:
+        dest.write_bytes(resp.read())
+    print(f"overlaid {rel} -> {dest}")
+PY
 
 # Install uv package manager
 RUN curl -Ls https://astral.sh/uv/install.sh | sh \
